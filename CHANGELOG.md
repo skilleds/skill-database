@@ -4,7 +4,7 @@ Todas as mudanças relevantes deste pacote, no formato [Keep a Changelog](https:
 com versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 
-## [Não lançado]
+## [0.7.0] — 2026-11-03
 
 ### Alterado
 - `references/migrations.md`: contract com `DROP` NÃO é reversível; o `down` é restore de backup verificado (`-- pg-restore:`) ou ADR de passo irreversível; `DROP TABLE` como `down` do `CREATE` inicial só em dev/hml; convenção do par `NNN_nome.up.sql`/`.down.sql`. SKILL.md e assets/CLAUDE.md alinhados com `schematize-postgres`.
