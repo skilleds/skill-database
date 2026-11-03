@@ -59,7 +59,7 @@ Os comandos ficam em `assets/commands/` e são instalados em `.claude/commands/`
    domínio do valor, **`FK` com `ON DELETE` consciente** (`RESTRICT`/`CASCADE`/`SET NULL` é decisão
    de domínio, nunca default silencioso).
 5. **Planeje a evolução expand-contract** (`references/migrations.md`): toda mudança de schema em
-   dado vivo é **expand → migrate → contract**, cada passo **reversível** (`down` testado). O
+   dado vivo é **expand → migrate → contract**, cada passo com `down` (expand: testado; contract com `DROP`: restore verificado ou ADR). O
    `/database-design` já emite a **primeira migration** (a criação) nesse formato. Esta skill é dona do expand-contract do **schema**; backfill e migração de **dados** são da `schematize-data → references/armazenamento.md`.
 6. **Marque e proteja PII** (`references/seguranca-pii.md`): coluna pessoal é **marcada** (base
    legal, retenção e mascaramento são decididos em `schematize-data → references/governanca.md`), **nunca** entra em índice/URL/chave natural exposta, e a identidade **não é
@@ -109,9 +109,9 @@ Independente do reference, estes limites nunca são cruzados:
    antes de range); use **parcial** pra subconjunto quente e **cobertura** pra evitar heap-fetch
    quando medido. **Coluna PII em claro nunca é chave de índice pesquisável nem vai pra URL/chave
    natural exposta** (`references/seguranca-pii.md`).
-6. **Migration de schema é expand-contract e REVERSÍVEL — nunca `DROP`/rename num passo.** Mudar
+6. **Migration de schema é expand-contract com `down` — nunca `DROP`/rename num passo.** Mudar
    dado vivo é **expand (aditivo, compatível) → migrate (backfill idempotente + dual-write) →
-   contract (corta o velho só quando ninguém lê)**, cada passo com **`down` testado** (aplica **e**
+   contract (corta o velho só quando ninguém lê)**, cada passo com **`down`** (expand: testado, aplica **e**
    reverte). `RENAME`/`DROP COLUMN`/mudança de tipo in-place num passo só sobre dado vivo é
    **VETADO** — é quebra de contrato disfarçada. Casa 1:1 com o piso de migrations da
    **schematize-data**.
@@ -147,7 +147,7 @@ Esta skill desenha **o schema relacional em si**. O que fica de fora:
   warehouse/lakehouse (bronze/silver/gold). Regra prática: **desenhar a TABELA OLTP** é aqui;
   **mover/versionar/validar o DADO entre sistemas** é `schematize-data`. O
   **expand-contract do schema** é daqui; migração/backfill de **dados** é de `schematize-data`.
-- **OPERAR o PostgreSQL → `schematize-postgres`.** Rodar a migration em banco vivo (`lock_timeout`, fila de
+- **OPERAR o PostgreSQL → `schematize-postgres`.** **Aplicar a migration é operação do ops, a partir de arquivo versionado no git (`ops migrate`, dry-run, humano confirma o destrutivo); esta skill desenha o arquivo, não o aplica.** Rodar a migration em banco vivo (`lock_timeout`, fila de
   lock, `CREATE INDEX CONCURRENTLY`, `NOT VALID`+`VALIDATE`, backfill em lotes), EXPLAIN, vacuum, pooling,
   backup/PITR, RLS (`schematize-postgres → references/locks-e-migrations.md`). O **desenho** da migration
   (expand-contract, o que cada passo contém) continua aqui.
@@ -159,6 +159,8 @@ Esta skill desenha **o schema relacional em si**. O que fica de fora:
   desenho** (identidade≠email, id surrogate, tenant, PII) que o auth usa; o **fluxo** de auth
   (OIDC, fatores, sessão) é do IAM.
 - **Frontend/consumo → `schematize-web`.** Como o dado chega à tela; segredo nunca no bundle.
+
+Herda os pisos 22–29 da `schematize-engineering` (git como trava de conclusão, deploy só do git, ops é o gate da IA, sem agents inúteis, relatório 30 min/handoff 6 h, CI remoto só antes do hml, microserviço autônomo, build em dev/hml + higiene).
 
 ## Precedência e herança (leia antes de divergir)
 

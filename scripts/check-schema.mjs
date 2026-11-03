@@ -150,6 +150,24 @@ for (const f of arquivos) {
   }
 }
 
+// ---- par up/down (piso 8): migration NNN_nome[.up].sql exige NNN_nome.down.sql
+// (ou `-- pg-irreversivel: ADR-<n> <motivo>` no up: passo irreversível com ADR explícito).
+const ehDown = b => /(\.down\.sql|_down\.sql|\.rollback\.sql|_rollback\.sql)$/i.test(b)
+const todos = new Set(arquivos)
+for (const f of arquivos) {
+  const b = f.split(/[\\/]/).pop()
+  if (ehDown(b) || !/^\d+_.+\.sql$/.test(b)) continue
+  const dir = f.slice(0, f.length - b.length)
+  const base = b.replace(/\.sql$/i, '').replace(/\.up$/i, '')
+  const pares = [`${dir}${base}.down.sql`, `${dir}${base}_down.sql`, `${dir}${base}.rollback.sql`, `${dir}down/${b}`, `${dir}down/${base}.sql`]
+  if (pares.some(p => todos.has(p))) continue
+  const txt = readFileSync(f, 'utf8')
+  if (/^\s*--\s*pg-irreversivel:\s*ADR-?[\w-]+\s+\S/im.test(txt)) continue
+  add(relative(alvo, f) || f, 1, 1, 'viola', 'migration-sem-down',
+    `\`${b}\` não tem par \`${base}.down.sql\` — migration só com up é vetada; o contract destrutivo tem como down o restore de backup testado, ou ADR de passo irreversível`,
+    `crie \`${base}.down.sql\` (contract com DROP: \`-- pg-restore: <backup verificado>\`) ou \`-- pg-irreversivel: ADR-<n> <motivo>\``)
+}
+
 achados.sort((a, b) => a.severidade - b.severidade || a.arquivo.localeCompare(b.arquivo) || a.linha - b.linha)
 const bloqueantes = achados.filter(a => a.severidade <= 1)
 

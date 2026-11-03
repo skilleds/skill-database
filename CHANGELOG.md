@@ -4,6 +4,16 @@ Todas as mudanças relevantes deste pacote, no formato [Keep a Changelog](https:
 com versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
 
+## [Não lançado]
+
+### Alterado
+- `references/migrations.md`: contract com `DROP` NÃO é reversível; o `down` é restore de backup verificado (`-- pg-restore:`) ou ADR de passo irreversível; `DROP TABLE` como `down` do `CREATE` inicial só em dev/hml; convenção do par `NNN_nome.up.sql`/`.down.sql`. SKILL.md e assets/CLAUDE.md alinhados com `schematize-postgres`.
+- Fronteira: aplicar a migration é operação do ops a partir de arquivo versionado no git (`ops migrate`); esta skill desenha o arquivo.
+- Bloco herdado dos pisos 22–29 da engineering.
+
+### Adicionado
+- `check-schema.mjs`: regra `migration-sem-down` (bloqueante) para `NNN_*.sql` sem par `.down.sql`, salvo `-- pg-irreversivel: ADR-<n> <motivo>`; testes vermelho -> verde.
+
 ## [0.6.0] — 2026-10-14
 Integração com as 8 skills novas (skill-dev, iam, api, payments, postgres, incident, analytics, git) e saneamento pelo gate novo.
 

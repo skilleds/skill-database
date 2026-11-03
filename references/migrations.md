@@ -2,13 +2,14 @@
 
 > O schema **evolui** — e evoluir dado vivo sem parar o serviço nem perder dado é o piso mais
 > perigoso do dia a dia. A resposta da casa é **expand → migrate → contract**, cada passo
-> **reversível**. Este reference cobre a mecânica da migration, o versionamento do schema e o
+> com **down** (e o contract destrutivo com restore verificado ou ADR). Este reference cobre a mecânica da migration, o versionamento do schema e o
 > **particionamento** básico.
 
 Fronteira com a **schematize-data**: aqui é o expand-contract do **schema** (DDL, constraints, índices); o backfill e a migração dos **dados** em si são de `schematize-data → references/armazenamento.md` §4. Base:
 `schematize-engineering` §10 — migrations **versionadas, reversíveis (com `down`), automatizadas no
-deploy**. A **execução** (rodar a migration, a ferramenta) é da **skill de linguagem**
-(`sqlx-cli`/`golang-migrate`/`flyway`/…); aqui desenhamos **o conteúdo** da migration.
+deploy**. A **aplicação** da migration é **operação do ops** (`ops migrate`, dry-run, a partir de arquivo
+versionado no git; piso 24), nunca um comando solto da IA; o cliente/ferramenta de migration é da
+**skill de linguagem** (`sqlx-cli`/`golang-migrate`/`flyway`/…); aqui desenhamos **o conteúdo** da migration.
 
 ## 1. Toda migration é versionada e reversível
 
@@ -17,9 +18,16 @@ deploy**. A **execução** (rodar a migration, a ferramenta) é da **skill de li
   produção — crie a próxima.
 - **Reversível — `up` E `down`:** todo passo tem o **`down` testado** (aplica **e** reverte). "Rodei
   o `up` em dev uma vez" **não** é teste de rollback. Migration só com `up` é **VETADA** — quando o
-  deploy falha no meio, o `down` é a única saída sem restore.
+  deploy falha no meio, o `down` é a única saída sem restore. Convenção do par:
+  `NNN_nome.up.sql` + `NNN_nome.down.sql` (o gate `check-schema.mjs` reprova o up sem par, salvo
+  `-- pg-irreversivel: ADR-<n> <motivo>`).
+- **Contract com `DROP` NÃO é reversível:** `DROP COLUMN`/`DROP TABLE` destrói o dado e nenhum `down`
+  em DDL o devolve. O `down` de um contract destrutivo é o **restore de backup verificado**
+  (`-- pg-restore: <backup/ensaio>` no `.down.sql`) ou um **ADR explícito de passo irreversível**.
+  Só o expand (aditivo) tem `down` por inversão de DDL.
 - **A criação inicial também é migration:** o `/database-design` emite o `CREATE TABLE` **como a
-  primeira migration** (o primeiro `expand`), com o `down` sendo o `DROP` correspondente — porque
+  primeira migration** (o primeiro `expand`), com o `down` sendo o `DROP` correspondente (**só em dev/hml**: em prd esse `DROP` apagaria dado, e ali o
+  `down` é restore verificado ou ADR) — porque
   "criar as tabelas na mão" não é reproduzível nem versionado.
 
 ## 2. Expand-contract — os três passos
@@ -43,7 +51,7 @@ migrou. Faça em **três deploys separados**:
    leitores enxergam o novo.
 3. **Contract (corta o velho — só quando ninguém lê).** Quando **todo** leitor migrou (confirme
    quem lê — lineage/catálogo, `schematize-data`) e o backfill terminou, remova o antigo. **Só
-   aqui** o `DROP` acontece — em passo **separado**, deployado **depois**, e reversível.
+   aqui** o `DROP` acontece — em passo **separado**, deployado **depois**. O `DROP` **não é reversível**: o `down` é restore de backup verificado ou ADR.
 
    > *Este dual-write **não é o dual-write vetado**.* O que a `schematize-data` veta (piso 2) é
    > escrever em **dois sistemas** (banco + broker) sem transação que cubra os dois. Aqui as duas
@@ -64,7 +72,7 @@ migrou. Faça em **três deploys separados**:
 
 ## 3. Regras da migration (pisos)
 
-- **Cada passo reversível e pequeno.** Um passo faz **uma** coisa; grandes migrations monolíticas
+- **Cada passo com `down` e pequeno** (no contract destrutivo, `down` = restore verificado ou ADR). Um passo faz **uma** coisa; grandes migrations monolíticas
   são difíceis de reverter e de raciocinar.
 - **Timestamps UTC; IDs ULID/UUIDv7** — no `CREATE` e em qualquer coluna nova (base §10).
 - **`DROP`/rename destrutivo num passo sobre dado vivo é VETADO** — sempre a sequência

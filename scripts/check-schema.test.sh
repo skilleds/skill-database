@@ -95,6 +95,27 @@ if node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); process.ex
   echo "  ✔ --json com arquivo, linha, regra e severidade em todos os achados"; ok=$((ok+1))
 else echo "  ✖ --json malformado"; sed 's/^/      /' <<<"$saida"; fail=$((fail+1)); fi
 
+echo "== par up/down =="
+par() { # par <nome> <exit> <agulha> <arquivos...> : cria dir com arquivos (conteúdo do stdin, igual em todos)
+  local nome="$1" esp="$2" agulha="$3"; shift 3
+  local d="$TMP/$nome"; mkdir -p "$d"; local c; c="$(cat)"
+  for a in "$@"; do printf '%s\n' "$c" >"$d/$a"; done
+  local saida; saida="$(node "$G" "$d" 2>&1)"; local rc=$?
+  if [ "$rc" != "$esp" ] || { [ -n "$agulha" ] && ! grep -qF -- "$agulha" <<<"$saida"; }; then
+    echo "  ✖ $nome: exit $rc, esperado $esp"; sed 's/^/      /' <<<"$saida"; fail=$((fail+1)); return; fi
+  echo "  ✔ $nome"; ok=$((ok+1))
+}
+par up-sem-down 1 "migration-sem-down" 001_cria_tenant.up.sql <<'FIX'
+create table tenant (id uuid primary key, nome text not null);
+FIX
+par up-com-down 0 "" 001_cria_tenant.up.sql 001_cria_tenant.down.sql <<'FIX'
+create table tenant (id uuid primary key, nome text not null);
+FIX
+par up-adr 0 "" 002_purga.up.sql <<'FIX'
+-- pg-irreversivel: ADR-0009 purga LGPD, restore e o unico caminho
+create table purga (id uuid primary key, nome text not null);
+FIX
+
 echo "== nada para analisar =="
 d="$TMP/vazio"; mkdir -p "$d"; echo "# prosa" > "$d/LEIA.md"
 saida="$(node "$G" "$d" 2>&1)"; rc=$?
