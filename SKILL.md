@@ -1,7 +1,7 @@
 ---
 name: schematize-database
 metadata:
-  version: 0.6.0
+  version: 0.7.0
 description: >-
   Schema relacional: normalização, chaves, tipos, constraints, índices, migrations expand-contract, PII marcada. Use ao modelar tabela ou *.sql. Operar o banco: schematize-postgres.
 ---
@@ -21,7 +21,7 @@ o banco é a **última linha de defesa** da consistência (constraint que o banc
 de nenhum app se comportar). "Depois a gente ajusta o schema" é caro: ajustar schema com dado vivo
 é migration com risco; ajustá-lo **no desenho** é grátis.
 
-**Versão:** skill `schematize-database` v0.6.0. Changelog em `CHANGELOG.md`.
+**Versão:** skill `schematize-database` v0.7.0. Changelog em `CHANGELOG.md`.
 
 ## Comandos (Claude Code)
 
